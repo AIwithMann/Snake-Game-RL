@@ -4,6 +4,7 @@
 #include<vector>
 #include<stdexcept>
 #include<utility>
+#include<cstdlib>
 
 std::random_device rd;
 std::mt19937 gen(rd());
@@ -46,7 +47,13 @@ class Snake{
         y = dist_cols(gen);
       }
     }
-
+    void clearScreen() {
+      #ifdef _WIN32
+          std::system("cls");
+      #else
+          std::system("clear");
+      #endif
+    }
     bool collision(){
       for(int pass = 0; pass < length; pass++){
         for(int i = 0; i < length && i != pass; i++){
@@ -157,17 +164,24 @@ class Snake{
 
     void iterate(){
       while(1){
-        if(length == height*width)
+        if(length == height*width){
+          clearScreen();
+          print();
+          std::cout << "YOU WON!\n";
           break;
+        }
+        clearScreen();
         print();
         char c;
         std::cin >> c;
-        if(move(c) == false)
-         break;
+        if(move(c) == false){
+          clearScreen();
+          print();
+          std::cout << "GAME OVER!\n";
+          break;
+        }
       }
     }
-
-    
 };
 int main(){
   Snake game(10,10);
