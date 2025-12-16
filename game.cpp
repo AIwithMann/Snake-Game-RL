@@ -5,6 +5,19 @@
 #include<stdexcept>
 #include<utility>
 #include<cstdlib>
+#include<chrono>
+#include<thread>
+#include<unistd.h>
+#include<termios.h>
+#include<fcntl.h>
+
+void enableRawMode(){
+  termios t;
+  tcgetattr(STDIN_FILENO,&t);
+  t.c_lflag &= ~(ICANON | ECHO);
+  tcsetattr(STDIN_FILENO, TCSANOW, &t);
+  fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
+}
 
 std::random_device rd;
 std::mt19937 gen(rd());
@@ -19,17 +32,25 @@ class Snake{
     std::uniform_int_distribution<int> dist_cols;
 
   public:
-    Snake(int rows, int cols) : height(rows), width(cols),
-                                grid(rows, std::vector<int>(cols, 0)),
-                                length(1),
-                                dist_rows(0, rows - 1),
-                                dist_cols(0, cols - 1) {
-        snake.push_back({height / 2, width / 2});  // start in middle
+    Snake(int rows, int cols) : height(rows), width(cols), grid(rows, std::vector<int>(cols, 0)), length(1), dist_rows(0, rows - 1),dist_cols(0, cols - 1) {
+        snake.push_back({height / 2, width / 2});
         spawnFood();
     }
+    //use this if on linux/macos
+    bool getInput(char& c){
+      return read(STDIN_FILENO, &c, 1) == 1;
+    }
+    /* use this if on windows
+    bool getInput(char& c) {
+      if (_kbhit()) {
+        c = _getch();
+        return true;
+      }
+      return false;
+    }*/
     bool in(int x, int y){
       for(int i = 0; i < length; i++){
-        if(snake[i][0] == x && snake[i][1] ==  y) 
+        if(snake[i][0] == x && snake[i][1] ==  y)
           return true;
       }
       return false;
@@ -162,29 +183,36 @@ class Snake{
       }
     }
 
-    void iterate(){
-      while(1){
-        if(length == height*width){
+    void iterate() {
+      const int interval_ms = 500;
+      char last_move = 'd'; // default direction
+
+      enableRawMode(); // only on linux/macos
+
+      while (true) {
+          auto start = std::chrono::steady_clock::now();
+          char c;
+          if (getInput(c)) {
+              last_move = c;
+          }
+          if (!move(last_move)) {
+              clearScreen();
+              print();
+              std::cout << "GAME OVER!\n";
+              break;
+          }
           clearScreen();
           print();
-          std::cout << "YOU WON!\n";
-          break;
-        }
-        clearScreen();
-        print();
-        char c;
-        std::cin >> c;
-        if(move(c) == false){
-          clearScreen();
-          print();
-          std::cout << "GAME OVER!\n";
-          break;
-        }
+
+          std::this_thread::sleep_until(
+              start + std::chrono::milliseconds(interval_ms)
+          );
       }
-    }
+  }
+
 };
 int main(){
-  Snake game(10,10);
+  Snake game(10,20);
   game.iterate();
   return 0;
 }
