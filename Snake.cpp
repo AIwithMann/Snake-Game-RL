@@ -164,7 +164,7 @@ void Snake::print() const {
 
 void Snake::iterate() {
     const int interval_ms = 500;
-    char last_move = 'd'; // default direction
+    last_move = 'd'; // default direction
     enableRawMode();
     while (true) {
         auto start = std::chrono::steady_clock::now();
@@ -183,3 +183,23 @@ void Snake::iterate() {
         std::this_thread::sleep_until(start + std::chrono::milliseconds(interval_ms));
     }
 }
+
+int Snake::headDirection() const{
+    switch(last_move){
+        case 'w':
+            return 0;
+        case 'd':
+            return 1;
+        case 's':
+            return 2;
+        case 'a':
+            return 3;
+        default:
+            return -1;
+    }
+}
+
+int Snake::getHeight() const{return height;}
+int Snake::getWidth() const{return width;}
+std::array<int, 2> Snake::getAppleIdx() const{return appleIdx;}
+const std::vector<std::array<int,2>>& Snake::getSnake() const{return snake;}
