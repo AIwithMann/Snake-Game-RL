@@ -10,21 +10,26 @@ private:
     std::vector<std::vector<int>> grid;
     std::vector<std::array<int, 2>> snake;
     int length;
+    char last_move;
     std::array<int,2> appleIdx;
     std::uniform_int_distribution<int> dist_rows;
     std::uniform_int_distribution<int> dist_cols;
     std::mt19937 gen;
 
-    bool in(int x, int y) const;
     void spawnFood();
-    bool collision() const;
 
 public:
     Snake(int rows, int cols);
-    // Input handling (Linux/macOS version)
-    bool getInput(char& c);
+    bool getInput(char& c); // Input handling (Linux/macOS version)
     bool move(char m);
     void clearScreen();
     void print() const;
     void iterate();
+    int headDirection() const;
+    int getHeight() const;
+    int getWidth() const;
+    bool collision() const;
+    std::array<int,2> getAppleIdx() const;
+    const std::vector<std::array<int,2>>& getSnake() const;
+    bool in(int x, int y) const;
 };
