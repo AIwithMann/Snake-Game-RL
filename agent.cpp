@@ -1,9 +1,22 @@
 #include "agent.h"
+#include <cmath>
+#include <initializer_list>
+#include <limits>
+#include <stdexcept>
+#include <algorithm>
 
-Agent::Agent(const Snake& _snake, float learningRate, float gamma, float epsilon, int n, int maxIteration): 
+int argmax(std::initializer_list<float> list) {
+    if (list.size() == 0) {
+        throw std::invalid_argument("argmax: empty list");
+    }
+    auto max_it = std::max_element(list.begin(), list.end());
+    return std::distance(list.begin(), max_it);
+}
+Agent::Agent(const Snake& _snake, float learningRate, float gamma, float epsilon,float alpha, int n, int maxIteration): 
     lr(learningRate),
     gamma(gamma),
     eps(epsilon),
+    alpha(alpha),
     steps(n),
     maxIter(maxIteration),
     snake(_snake)
@@ -32,8 +45,8 @@ int Agent::reward(const STATE& sPrime) const{
 
 FEATURE Agent::getFeature(const STATE& s) const{
     FEATURE f{};
-    auto body = snake.getSnake();
-    int hx = body[0][0], hy = body[0][1];
+    auto head = snake.getHeadIndex();
+    int hx = head[0], hy = head[1];
 
     if(hx - 1 < 0 || snake.in(hx-1, hy)) f[0] = 1;
     if(hy - 1 < 0 || snake.in(hx, hy-1)) f[1] = 1;
@@ -43,15 +56,78 @@ FEATURE Agent::getFeature(const STATE& s) const{
     auto apple = snake.getAppleIdx();
     int ax = apple[0], ay = apple[1];
 
-    if (ay < hy)
-        f[4] = 1;
-    else if (ax > hx)
-        f[5] = 1;
-    else if (ay > hy)
-        f[6] = 1;
-    else if (ax < hx)
-        f[7] = 1;
+    if (ay < hy) f[4] = 1;
+    else if (ax > hx) f[5] = 1;
+    else if (ay > hy) f[6] = 1;
+    else if (ax < hx) f[7] = 1;
 
     f[8 + snake.headDirection()] = 1;
     return f;
+}
+
+ACTION Agent::chooseAction(FEATURE& s){
+    float p = distEps(gen);
+    if (p < eps) return distAction(gen);
+    return argmax({getQ(s, 0), getQ(s,1), getQ(s, 2), getQ(s,3)});
+}
+
+void Agent::train(){
+    for(int episode = 0; episode < maxIter; episode++){
+        std::vector<FEATURE> states;
+        std::vector<ACTION> actions;
+        std::vector<float> rewards;
+        rewards.push_back(0);
+        snake.reset();
+        STATE curr = currentState;
+        FEATURE current_feature = getFeature(curr);
+        actions.push_back(chooseAction(current_feature));
+        states.push_back(current_feature);
+
+        int t = 0, T = std::numeric_limits<float>::max();
+
+        while(true){
+            if(t < T){
+                char m;
+                ACTION a = chooseAction(states[-1]);
+
+                if (a == 0) m = 'w';
+                else if (a == 1) m = 'd';
+                else if (a == 2) m = 's';
+                else if (a == 3) m = 'a';
+                
+                bool success = snake.move(m);
+                STATE currentState = snake.getHeadIndex();
+                FEATURE currentFeature = getFeature(currentState);
+                states.push_back(current_feature);
+                rewards.push_back(reward(currentState));
+
+                if(!success) T = t+1;
+                else actions.push_back(a);
+
+                int tau = t - steps + 1;
+                if (tau >= 0){
+                    float G = 0;
+                    for(int i = tau+1; std::min(tau+steps, T)+1; i++)
+                        G += std::pow(gamma, (i-tau-1)) * rewards[i];
+                    
+                    if (tau + steps < T){
+                        FEATURE sTauN = states[tau+steps];
+                        ACTION aTauN = actions[tau+steps];
+                        G += std::pow(gamma, steps) + getQ(sTauN, aTauN);
+                    }
+                    FEATURE sTau = states[tau];
+                    ACTION aTau = actions[tau];
+                    float qTau = getQ(sTau, aTau);
+                    float td = G - qTau;
+
+                    int offset = aTau * NUM_FEATURES;
+                    for(int featureIdx = 0; featureIdx < 12l; featureIdx++)
+                        weights[offset + featureIdx] = alpha * td;
+                }
+                if(tau == T - 1) break;
+                t += 1;
+            }
+        }
+        std::cout << episode << std::endl;
+    }
 }
