@@ -20,7 +20,7 @@ private:
     int NUM_FEATURES = 12;
     int NUM_ACTIONS = 4;
 
-    Snake snake;
+    Snake& snake;
     FEATURE feature;
     WEIGHT weights;
     STATE currentState;
@@ -34,16 +34,16 @@ private:
 
     std::mt19937 gen;
     std::uniform_real_distribution<float> distEps{0.0f,1.0f};
-    std::uniform_int_distribution<int> distAction{0,4};
-    std::uniform_int_distribution<int> distRow{0,snake.getHeight()};
-    std::uniform_int_distribution<int> distCol{0, snake.getWidth()};
+    std::uniform_int_distribution<int> distAction{0,3};
+    std::uniform_int_distribution<int> distRow{0,snake.getHeight() - 1};
+    std::uniform_int_distribution<int> distCol{0, snake.getWidth() - 1};
 
     FEATURE getFeature(const STATE& s) const;
     float getQ(FEATURE& s, ACTION a) const;
-    int reward(const STATE& prevS) const;
+    int reward(const STATE& sPrime, STATE appleIdx) const;
 
 public:
-    Agent(const Snake& _snake, float learningRate, float gamma, float epsilon, float alpha, int n, int maxIteration);
+    Agent(Snake& _snake, float learningRate, float gamma, float epsilon, float alpha, int n, int maxIteration);
     ACTION chooseAction(FEATURE& s);
     void train();
     void play();
