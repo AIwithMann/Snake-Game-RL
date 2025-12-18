@@ -199,7 +199,15 @@ int Snake::headDirection() const{
     }
 }
 
+void Snake::reset(){
+    length = 1; 
+    snake.clear();
+    snake.push_back({height / 2, width / 2});
+    spawnFood();
+    last_move = 'd';
+}
 int Snake::getHeight() const{return height;}
 int Snake::getWidth() const{return width;}
 std::array<int, 2> Snake::getAppleIdx() const{return appleIdx;}
-const std::vector<std::array<int,2>>& Snake::getSnake() const{return snake;}
+
+const std::array<int,2> Snake::getHeadIndex() const{return snake[0];}
