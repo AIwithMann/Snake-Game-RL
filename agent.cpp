@@ -12,7 +12,7 @@ int argmax(std::initializer_list<float> list) {
     auto max_it = std::max_element(list.begin(), list.end());
     return std::distance(list.begin(), max_it);
 }
-Agent::Agent(const Snake& _snake, float learningRate, float gamma, float epsilon,float alpha, int n, int maxIteration): 
+Agent::Agent(Snake& _snake, float learningRate, float gamma, float epsilon,float alpha, int n, int maxIteration): 
     lr(learningRate),
     gamma(gamma),
     eps(epsilon),
@@ -35,8 +35,8 @@ float Agent::getQ(FEATURE& s, ACTION a) const{
     return q;
 }
 
-int Agent::reward(const STATE& sPrime) const{
-    bool ate = (sPrime == snake.getAppleIdx());
+int Agent::reward(const STATE& sPrime, STATE appleIdx) const{
+    bool ate = (sPrime == appleIdx);
     bool collide = (sPrime[0] < 0 || sPrime[1] < 0 || sPrime[0] >= snake.getHeight() || sPrime[1] >= snake.getWidth() || snake.collision());
     if (ate) return 20;
     if (collide) return -20;
@@ -45,8 +45,7 @@ int Agent::reward(const STATE& sPrime) const{
 
 FEATURE Agent::getFeature(const STATE& s) const{
     FEATURE f{};
-    auto head = snake.getHeadIndex();
-    int hx = head[0], hy = head[1];
+    int hx = s[0], hy = s[1];
 
     if(hx - 1 < 0 || snake.in(hx-1, hy)) f[0] = 1;
     if(hy - 1 < 0 || snake.in(hx, hy-1)) f[1] = 1;
@@ -78,8 +77,8 @@ void Agent::train(){
         std::vector<float> rewards;
         rewards.push_back(0);
         snake.reset();
-        STATE curr = currentState;
-        FEATURE current_feature = getFeature(curr);
+        currentState = snake.getHeadIndex();
+        FEATURE current_feature = getFeature(currentState);
         actions.push_back(chooseAction(current_feature));
         states.push_back(current_feature);
 
@@ -88,18 +87,18 @@ void Agent::train(){
         while(true){
             if(t < T){
                 char m;
-                ACTION a = chooseAction(states[-1]);
+                ACTION a = chooseAction(states[states.size()-1]);
 
                 if (a == 0) m = 'w';
                 else if (a == 1) m = 'd';
                 else if (a == 2) m = 's';
                 else if (a == 3) m = 'a';
-                
+                STATE apple = snake.getAppleIdx();
                 bool success = snake.move(m);
                 STATE currentState = snake.getHeadIndex();
                 FEATURE currentFeature = getFeature(currentState);
                 states.push_back(current_feature);
-                rewards.push_back(reward(currentState));
+                rewards.push_back(reward(currentState,apple));
 
                 if(!success) T = t+1;
                 else actions.push_back(a);
@@ -107,13 +106,13 @@ void Agent::train(){
                 int tau = t - steps + 1;
                 if (tau >= 0){
                     float G = 0;
-                    for(int i = tau+1; std::min(tau+steps, T)+1; i++)
-                        G += std::pow(gamma, (i-tau-1)) * rewards[i];
+                    for(int i = tau + 1; i <= std::min(tau + steps, T); i++)
+                        G += std::pow(gamma, i - tau - 1) * rewards[i];
                     
                     if (tau + steps < T){
                         FEATURE sTauN = states[tau+steps];
                         ACTION aTauN = actions[tau+steps];
-                        G += std::pow(gamma, steps) + getQ(sTauN, aTauN);
+                        G += std::pow(gamma, steps) * getQ(sTauN, aTauN);
                     }
                     FEATURE sTau = states[tau];
                     ACTION aTau = actions[tau];
@@ -121,12 +120,13 @@ void Agent::train(){
                     float td = G - qTau;
 
                     int offset = aTau * NUM_FEATURES;
-                    for(int featureIdx = 0; featureIdx < 12l; featureIdx++)
-                        weights[offset + featureIdx] = alpha * td;
+                    for(int featureIdx = 0; featureIdx < 12; featureIdx++)
+                        weights[offset + featureIdx] += alpha * td * sTau[featureIdx];
                 }
                 if(tau == T - 1) break;
                 t += 1;
             }
+            std::cout<<episode;
         }
         std::cout << episode << std::endl;
     }
