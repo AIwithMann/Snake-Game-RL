@@ -30,6 +30,7 @@ public:
     int getWidth() const;
     bool collision() const;
     std::array<int,2> getAppleIdx() const;
-    const std::vector<std::array<int,2>>& getSnake() const;
+    const std::array<int,2> getHeadIndex() const;
     bool in(int x, int y) const;
+    void reset();
 };
