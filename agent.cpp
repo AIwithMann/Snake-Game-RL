@@ -1,7 +1,6 @@
 #include "agent.h"
 #include <cmath>
 #include <initializer_list>
-#include <limits>
 #include <stdexcept>
 #include <algorithm>
 
@@ -19,9 +18,14 @@ Agent::Agent(Snake& _snake, float learningRate, float gamma, float epsilon,float
     alpha(alpha),
     steps(n),
     maxIter(maxIteration),
-    snake(_snake)
+    snake(_snake),
+    distEps(0.0f, 1.0f),
+    distAction(0,3),
+    distRow(0,snake.getHeight() - 1),
+    distCol(0, snake.getWidth() - 1)
 {
     weights.fill(0.0f);
+    gen = std::mt19937(std::random_device{}());
 }
 
 
@@ -71,44 +75,60 @@ ACTION Agent::chooseAction(FEATURE& s){
 }
 
 void Agent::train(){
+    std::cout<< "world   \n";
     for(int episode = 0; episode < maxIter; episode++){
+        std::cout <<"initialized.\n";
+        //Initialize and do first actions
         std::vector<FEATURE> states;
         std::vector<ACTION> actions;
         std::vector<float> rewards;
         rewards.push_back(0);
         snake.reset();
+        std::cout<<"reset done\n";
         currentState = snake.getHeadIndex();
         FEATURE current_feature = getFeature(currentState);
         actions.push_back(chooseAction(current_feature));
         states.push_back(current_feature);
 
-        int t = 0, T = std::numeric_limits<float>::max();
-
-        while(true){
-            if(t < T){
+        int t = 0;
+        int T = 100;
+        std::cout << "done1\n";
+        while(1){
+            if(t < T){ // if episode not ended
+                //select action
                 char m;
                 ACTION a = chooseAction(states[states.size()-1]);
-
+                std::cout << "hello\n";
+                // map action
                 if (a == 0) m = 'w';
                 else if (a == 1) m = 'd';
                 else if (a == 2) m = 's';
                 else if (a == 3) m = 'a';
+                //get apple index
                 STATE apple = snake.getAppleIdx();
+                //move(do that action)
                 bool success = snake.move(m);
-                STATE currentState = snake.getHeadIndex();
-                FEATURE currentFeature = getFeature(currentState);
-                states.push_back(current_feature);
-                rewards.push_back(reward(currentState,apple));
-
-                if(!success) T = t+1;
-                else actions.push_back(a);
-
+                //get new state and its feature
+                STATE nextHead = snake.getHeadIndex();
+                FEATURE nextFeature = getFeature(nextHead);
+                //append state and reward
+                states.push_back(nextFeature);
+                rewards.push_back(reward(nextHead,apple));
+                actions.push_back(a);
+                //check if episode should be ended
+                bool episodeEnded = !success || snake.collision();
+                if(episodeEnded){
+                    std::cout << "hi\n";
+                    T = t+1;
+                }else{
+                    std::cout << "bye\n";
+                }
                 int tau = t - steps + 1;
                 if (tau >= 0){
                     float G = 0;
                     for(int i = tau + 1; i <= std::min(tau + steps, T); i++)
                         G += std::pow(gamma, i - tau - 1) * rewards[i];
-                    
+                    std::cout << "big tau\n";
                     if (tau + steps < T){
                         FEATURE sTauN = states[tau+steps];
                         ACTION aTauN = actions[tau+steps];
@@ -123,11 +143,13 @@ void Agent::train(){
                     for(int featureIdx = 0; featureIdx < 12; featureIdx++)
                         weights[offset + featureIdx] += alpha * td * sTau[featureIdx];
                 }
-                if(tau == T - 1) break;
-                t += 1;
+                if(tau == T - 1) 
+                    break;
+                ++t;
+                std::cout << "small tau\n";
+                continue;
             }
-            std::cout<<episode;
         }
-        std::cout << episode << std::endl;
+        std::cout << "episode" << episode << "\n";
     }
 }
