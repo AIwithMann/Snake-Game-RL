@@ -21,7 +21,6 @@ private:
     int NUM_ACTIONS = 4;
 
     Snake& snake;
-    FEATURE feature;
     WEIGHT weights;
     STATE currentState;
 
@@ -33,10 +32,10 @@ private:
     int maxIter;
 
     std::mt19937 gen;
-    std::uniform_real_distribution<float> distEps{0.0f,1.0f};
-    std::uniform_int_distribution<int> distAction{0,3};
-    std::uniform_int_distribution<int> distRow{0,snake.getHeight() - 1};
-    std::uniform_int_distribution<int> distCol{0, snake.getWidth() - 1};
+    std::uniform_real_distribution<float> distEps;
+    std::uniform_int_distribution<int> distAction;
+    std::uniform_int_distribution<int> distRow;
+    std::uniform_int_distribution<int> distCol;
 
     FEATURE getFeature(const STATE& s) const;
     float getQ(FEATURE& s, ACTION a) const;
