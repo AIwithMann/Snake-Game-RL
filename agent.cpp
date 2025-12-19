@@ -75,16 +75,14 @@ ACTION Agent::chooseAction(FEATURE& s){
 }
 
 void Agent::train(){
-    std::cout<< "world   \n";
     for(int episode = 0; episode < maxIter; episode++){
-        std::cout <<"initialized.\n";
+        std::cout << "episode" << episode << "\n";
         //Initialize and do first actions
         std::vector<FEATURE> states;
         std::vector<ACTION> actions;
         std::vector<float> rewards;
         rewards.push_back(0);
         snake.reset();
-        std::cout<<"reset done\n";
         currentState = snake.getHeadIndex();
         FEATURE current_feature = getFeature(currentState);
         actions.push_back(chooseAction(current_feature));
@@ -92,13 +90,12 @@ void Agent::train(){
 
         int t = 0;
         int T = 100;
-        std::cout << "done1\n";
-        while(1){
+        while(t < T){
+            std::cout << "t = " << t << "\n";
             if(t < T){ // if episode not ended
                 //select action
                 char m;
-                ACTION a = chooseAction(states[states.size()-1]);
-                std::cout << "hello\n";
+                ACTION a = actions[actions.size() - 1];
                 // map action
                 if (a == 0) m = 'w';
                 else if (a == 1) m = 'd';
@@ -114,42 +111,37 @@ void Agent::train(){
                 //append state and reward
                 states.push_back(nextFeature);
                 rewards.push_back(reward(nextHead,apple));
-                actions.push_back(a);
                 //check if episode should be ended
                 bool episodeEnded = !success || snake.collision();
                 if(episodeEnded){
-                    std::cout << "hi\n";
                     T = t+1;
                 }else{
-                    std::cout << "bye\n";
+                    actions.push_back(a);
                 }
-                int tau = t - steps + 1;
-                if (tau >= 0){
-                    float G = 0;
-                    for(int i = tau + 1; i <= std::min(tau + steps, T); i++)
-                        G += std::pow(gamma, i - tau - 1) * rewards[i];
-                    std::cout << "big tau\n";
-                    if (tau + steps < T){
-                        FEATURE sTauN = states[tau+steps];
-                        ACTION aTauN = actions[tau+steps];
-                        G += std::pow(gamma, steps) * getQ(sTauN, aTauN);
-                    }
-                    FEATURE sTau = states[tau];
-                    ACTION aTau = actions[tau];
-                    float qTau = getQ(sTau, aTau);
-                    float td = G - qTau;
+            int tau = t - steps + 1;
+            if (tau >= 0){
+                float G = 0;
+                for(int i = tau + 1; i <= std::min(tau + steps, T); i++)
+                    G += std::pow(gamma, i - tau - 1) * rewards[i];
+                if (tau + steps < T){
+                    FEATURE sTauN = states[tau+steps];
+                    ACTION aTauN = actions[tau+steps];
+                    G += std::pow(gamma, steps) * getQ(sTauN, aTauN);
+                }
+                FEATURE sTau = states[tau];
+                ACTION aTau = actions[tau];
+                float qTau = getQ(sTau, aTau);
+                float td = G - qTau;
 
-                    int offset = aTau * NUM_FEATURES;
-                    for(int featureIdx = 0; featureIdx < 12; featureIdx++)
-                        weights[offset + featureIdx] += alpha * td * sTau[featureIdx];
-                }
-                if(tau == T - 1) 
-                    break;
-                ++t;
-                std::cout << "small tau\n";
-                continue;
+                int offset = aTau * NUM_FEATURES;
+                for(int featureIdx = 0; featureIdx < 12; featureIdx++)
+                    weights[offset + featureIdx] += alpha * td * sTau[featureIdx];
+            }
+            if(tau == T - 1) 
+                break;
+            ++t;
+            continue;
             }
         }
-        std::cout << "episode" << episode << "\n";
     }
 }
