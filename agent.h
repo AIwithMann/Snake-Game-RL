@@ -10,6 +10,9 @@
 #include<limits>
 #include<cmath>
 #include<algorithm>
+#include<string>
+#include<fstream>
+
 using FEATURE = std::array<uint8_t, 12>;
 using WEIGHT = std::array<float, 12 * 4>;
 using STATE = std::array<int,2>;
@@ -46,4 +49,6 @@ public:
     ACTION chooseAction(FEATURE& s);
     void train();
     void play();
+    void saveWeights(const std::string& fileName);
+    void loadWeights(const std::string& fileName);
 };
