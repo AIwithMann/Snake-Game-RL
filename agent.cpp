@@ -3,6 +3,7 @@
 #include <initializer_list>
 #include <stdexcept>
 #include <algorithm>
+#include<iostream>
 
 int argmax(std::initializer_list<float> list) {
     if (list.size() == 0) {
@@ -76,7 +77,7 @@ ACTION Agent::chooseAction(FEATURE& s){
 
 void Agent::train() {
     for (int episode = 0; episode < maxIter; episode++) {
-        std::cout << "episode" << episode << std::endl;
+        std::cout << "episode" << episode << " ";
 
         snake.reset();
         STATE currentState = snake.getHeadIndex();
@@ -112,9 +113,13 @@ void Agent::train() {
                 if (t >= limit) {
                     r = -10.0f;      
                 }
+
                 bool terminal = !success || snake.collision();
+                
                 rewardHistory.push_back(r);
+                
                 featureHistory.push_back(nextFeature);
+
                 if (terminal) {
                     T = t + 1; 
                 } else {
@@ -122,6 +127,7 @@ void Agent::train() {
                     actionHistory.push_back(currentAction);
                 }
             }
+
             int tau = t - steps + 1;
             if (tau >= 0) {
                 float G = 0.0f;
@@ -131,10 +137,12 @@ void Agent::train() {
                 for (int i = start; i <= end; ++i) {
                     G += std::pow(gamma, i - tau - 1) * rewardHistory[i - 1];
                 }
+                
                 if (tau + steps < T) {
                     int bootstrap_t = tau + steps;
                     G += std::pow(gamma, steps) * getQ(featureHistory[bootstrap_t], actionHistory[bootstrap_t]);
                 }
+
                 FEATURE s_tau = featureHistory[tau];
                 ACTION a_tau = actionHistory[tau];
                 float q_tau = getQ(s_tau, a_tau);
@@ -146,10 +154,36 @@ void Agent::train() {
                     weights[offset + i] += alpha * td_error * s_tau[i];
                 }
             }
+
             if (tau == T - 1) {
                 break;
             }
+            
             t++;
         }
+        eps = std::max(0.01f, (1.0f - static_cast<float>(episode)/static_cast<float>(maxIter)));
+        std::cout << "Length: " << snake.getLength() << "\n";
+    }
+}
+
+void Agent::play(){
+    char last_move = 'd';
+    snake.enableRawMode();
+    while(true){
+        FEATURE current = getFeature(currentState);
+        int move = chooseAction(current);
+        if (move == 0) last_move = 'w';
+        else if(move == 1) last_move = 'd';
+        else if(move == 2) last_move = 's';
+        else if(move == 3) last_move = 'a';
+
+        if(!snake.move(last_move)){
+            snake.clearScreen();
+            snake.print();
+            std::cout << "Game over";
+            break;
+        }
+        snake.clearScreen();
+        snake.print();
     }
 }
