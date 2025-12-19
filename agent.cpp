@@ -1,5 +1,6 @@
 #include "agent.h"
 #include <cmath>
+#include <fstream>
 #include <initializer_list>
 #include <stdexcept>
 #include <algorithm>
@@ -186,4 +187,24 @@ void Agent::play(){
         snake.clearScreen();
         snake.print();
     }
+}
+
+void Agent::saveWeights(const std::string& fileName){
+    std::ofstream file(fileName);
+    if(!file){
+        std::cout << "failed to open file";
+        return;
+    }
+    for(float& w:weights)
+        file << w << ' ';
+}
+
+void Agent::loadWeights(const std::string& fileName){
+    std::ifstream file(fileName);
+    if(!file){
+        std::cout << "failed to open file";
+        return;
+    }
+    for(float& w:weights)
+        file >> w;
 }
