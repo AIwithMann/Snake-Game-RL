@@ -3,7 +3,6 @@
 #include <random>
 #include <array>
 #include <vector>
-#include <stdexcept>
 #include <cstdlib>
 #include <chrono>
 #include <thread>
@@ -11,13 +10,6 @@
 #include <termios.h>
 #include <fcntl.h>
 
-static void enableRawMode() {
-    termios t;
-    tcgetattr(STDIN_FILENO, &t);
-    t.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &t);
-    fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
-}
 
 Snake::Snake(int rows, int cols)
     : height(rows), width(cols),
@@ -44,18 +36,14 @@ bool Snake::in(int x, int y) const{
 }
 
 void Snake::spawnFood(){
-    int x = dist_rows(gen);
-    int y = dist_cols(gen);
-    while (true) {
-        if (!in(x, y) && grid[x][y] == 0){
-            appleIdx[0] = x;
-            appleIdx[1] = y;
-            grid[x][y] = 1;
-            break;
-        }
+    int x, y;
+    do {
         x = dist_rows(gen);
         y = dist_cols(gen);
-    }
+    } while (in(x, y)); // Keep rolling until we find a spot not in the snake
+
+    appleIdx[0] = x;
+    appleIdx[1] = y;
 }
 
 void Snake::clearScreen() {
@@ -77,74 +65,33 @@ bool Snake::collision() const{
 }
 
 bool Snake::move(char m) {
-    switch (m) {
-        case 'w': {
-            if (snake[0][0] - 1 < 0) return false;
-            bool ate = (grid[snake[0][0] - 1][snake[0][1]] == 1);
-            auto tail = snake[length - 1];
-            for (int i = length - 1; i > 0; --i) {
-                snake[i] = snake[i - 1];
-            }
-            snake[0][0]--;
-            if (ate) {
-                snake.push_back(tail);
-                ++length;
-                grid[snake[0][0]][snake[0][1]] = 0;
-                spawnFood();
-            }
-            return !collision();
-        }
-        case 's':{
-            if (snake[0][0] + 1 >= height) return false;
-            bool ate = (grid[snake[0][0] + 1][snake[0][1]] == 1);
-            auto tail = snake[length - 1];
-            for (int i = length - 1; i > 0; --i) {
-                snake[i] = snake[i - 1];
-            }
-            snake[0][0]++;
-            if (ate) {
-                snake.push_back(tail);
-                ++length;
-                grid[snake[0][0]][snake[0][1]] = 0;
-                spawnFood();
-            }
-            return !collision();
-        }
-        case 'a': {
-            if (snake[0][1] - 1 < 0) return false;
-            bool ate = (grid[snake[0][0]][snake[0][1] - 1] == 1);
-            auto tail = snake[length - 1];
-            for (int i = length - 1; i > 0; --i) {
-                snake[i] = snake[i - 1];
-            }
-            snake[0][1]--;
-            if (ate) {
-                snake.push_back(tail);
-                ++length;
-                grid[snake[0][0]][snake[0][1]] = 0;
-                spawnFood();
-            }
-            return !collision();
-        }
-        case 'd': {
-            if (snake[0][1] + 1 >= width) return false;
-            bool ate = (grid[snake[0][0]][snake[0][1] + 1] == 1);
-            auto tail = snake[length - 1];
-            for (int i = length - 1; i > 0; --i) {
-                snake[i] = snake[i - 1];
-            }
-            snake[0][1]++;
-            if (ate) {
-                snake.push_back(tail);
-                ++length;
-                grid[snake[0][0]][snake[0][1]] = 0;
-                spawnFood();
-            }
-            return !collision();
-        }
-        default:
-            throw std::runtime_error("invalid input");
+    int nextR = snake[0][0];
+    int nextC = snake[0][1];
+
+    if (m == 'w') nextR--;
+    else if (m == 's') nextR++;
+    else if (m == 'a') nextC--;
+    else if (m == 'd') nextC++;
+
+    // Wall collision
+    if (nextR < 0 || nextR >= height || nextC < 0 || nextC >= width) return false;
+
+    bool ate = (nextR == appleIdx[0] && nextC == appleIdx[1]);
+    
+    auto tail = snake.back();
+    for (int i = length - 1; i > 0; --i) {
+        snake[i] = snake[i - 1];
     }
+    snake[0] = {nextR, nextC};
+
+    if (ate) {
+        grid[appleIdx[0]][appleIdx[1]] = 0;
+        snake.push_back(tail);
+        ++length;
+        spawnFood();
+    }
+    
+    return !collision();
 }
 
 void Snake::print() const {
@@ -202,6 +149,8 @@ int Snake::headDirection() const{
 void Snake::reset(){
     length = 1; 
     snake.clear();
+    for(auto& row:grid)
+        std::fill(row.begin(), row.end(), 0);
     snake.push_back({height / 2, width / 2});
     spawnFood();
     last_move = 'd';
@@ -211,3 +160,14 @@ int Snake::getWidth() const{return width;}
 std::array<int, 2> Snake::getAppleIdx() const{return appleIdx;}
 
 const std::array<int,2> Snake::getHeadIndex() const{return snake[0];}
+
+
+void Snake::enableRawMode() {
+    termios t;
+    tcgetattr(STDIN_FILENO, &t);
+    t.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &t);
+    fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
+}
+
+int Snake::getLength(){return length;}
