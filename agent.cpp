@@ -60,9 +60,9 @@ FEATURE Agent::getFeature(const STATE& s) const{
     int ax = apple[0], ay = apple[1];
 
     if (ay < hy) f[4] = 1;
-    else if (ax > hx) f[5] = 1;
-    else if (ay > hy) f[6] = 1;
-    else if (ax < hx) f[7] = 1;
+    if (ax > hx) f[5] = 1;
+    if (ay > hy) f[6] = 1;
+    if (ax < hx) f[7] = 1;
 
     f[8 + snake.headDirection()] = 1;
     return f;
@@ -74,74 +74,82 @@ ACTION Agent::chooseAction(FEATURE& s){
     return argmax({getQ(s, 0), getQ(s,1), getQ(s, 2), getQ(s,3)});
 }
 
-void Agent::train(){
-    for(int episode = 0; episode < maxIter; episode++){
-        std::cout << "episode" << episode << "\n";
-        //Initialize and do first actions
-        std::vector<FEATURE> states;
-        std::vector<ACTION> actions;
-        std::vector<float> rewards;
-        rewards.push_back(0);
+void Agent::train() {
+    for (int episode = 0; episode < maxIter; episode++) {
+        std::cout << "episode" << episode << std::endl;
+
         snake.reset();
-        currentState = snake.getHeadIndex();
-        FEATURE current_feature = getFeature(currentState);
-        actions.push_back(chooseAction(current_feature));
-        states.push_back(current_feature);
+        STATE currentState = snake.getHeadIndex();
+        FEATURE currentFeature = getFeature(currentState);
+
+        ACTION currentAction = chooseAction(currentFeature);
+
+        std::vector<FEATURE> featureHistory { currentFeature };
+        std::vector<ACTION> actionHistory { currentAction };
+        std::vector<float> rewardHistory; 
 
         int t = 0;
-        int T = 100;
-        while(t < T){
-            std::cout << "t = " << t << "\n";
-            if(t < T){ // if episode not ended
-                //select action
-                char m;
-                ACTION a = actions[actions.size() - 1];
-                // map action
-                if (a == 0) m = 'w';
-                else if (a == 1) m = 'd';
-                else if (a == 2) m = 's';
-                else if (a == 3) m = 'a';
-                //get apple index
-                STATE apple = snake.getAppleIdx();
-                //move(do that action)
-                bool success = snake.move(m);
-                //get new state and its feature
-                STATE nextHead = snake.getHeadIndex();
-                FEATURE nextFeature = getFeature(nextHead);
-                //append state and reward
-                states.push_back(nextFeature);
-                rewards.push_back(reward(nextHead,apple));
-                //check if episode should be ended
-                bool episodeEnded = !success || snake.collision();
-                if(episodeEnded){
-                    T = t+1;
-                }else{
-                    actions.push_back(a);
-                }
-            int tau = t - steps + 1;
-            if (tau >= 0){
-                float G = 0;
-                for(int i = tau + 1; i <= std::min(tau + steps, T); i++)
-                    G += std::pow(gamma, i - tau - 1) * rewards[i];
-                if (tau + steps < T){
-                    FEATURE sTauN = states[tau+steps];
-                    ACTION aTauN = actions[tau+steps];
-                    G += std::pow(gamma, steps) * getQ(sTauN, aTauN);
-                }
-                FEATURE sTau = states[tau];
-                ACTION aTau = actions[tau];
-                float qTau = getQ(sTau, aTau);
-                float td = G - qTau;
+        int T = std::numeric_limits<int>::max(); // T is infinity initially
+        const int limit = 2000; // Safety limit
 
-                int offset = aTau * NUM_FEATURES;
-                for(int featureIdx = 0; featureIdx < 12; featureIdx++)
-                    weights[offset + featureIdx] += alpha * td * sTau[featureIdx];
+        while (true) {
+            if (t < T) {
+                char moveChar;
+                if (currentAction == 0) moveChar = 'w';
+                else if (currentAction == 1) moveChar = 'd';
+                else if (currentAction == 2) moveChar = 's';
+                else moveChar = 'a';
+
+                STATE apple = snake.getAppleIdx();
+                
+                bool success = snake.move(moveChar);
+
+                STATE nextState = snake.getHeadIndex();
+                FEATURE nextFeature = getFeature(nextState);
+                float r = reward(nextState, apple);
+
+                // Check for Step Limit (Starvation)
+                if (t >= limit) {
+                    r = -10.0f;      
+                }
+                bool terminal = !success || snake.collision();
+                rewardHistory.push_back(r);
+                featureHistory.push_back(nextFeature);
+                if (terminal) {
+                    T = t + 1; 
+                } else {
+                    currentAction = chooseAction(nextFeature);
+                    actionHistory.push_back(currentAction);
+                }
             }
-            if(tau == T - 1) 
+            int tau = t - steps + 1;
+            if (tau >= 0) {
+                float G = 0.0f;
+                int start = tau + 1;
+                int end = std::min(tau + steps, T);
+                
+                for (int i = start; i <= end; ++i) {
+                    G += std::pow(gamma, i - tau - 1) * rewardHistory[i - 1];
+                }
+                if (tau + steps < T) {
+                    int bootstrap_t = tau + steps;
+                    G += std::pow(gamma, steps) * getQ(featureHistory[bootstrap_t], actionHistory[bootstrap_t]);
+                }
+                FEATURE s_tau = featureHistory[tau];
+                ACTION a_tau = actionHistory[tau];
+                float q_tau = getQ(s_tau, a_tau);
+                float td_error = G - q_tau;
+
+                // Gradient Descent Update
+                int offset = a_tau * 12;
+                for (int i = 0; i < 12; i++) {
+                    weights[offset + i] += alpha * td_error * s_tau[i];
+                }
+            }
+            if (tau == T - 1) {
                 break;
-            ++t;
-            continue;
             }
+            t++;
         }
     }
 }
