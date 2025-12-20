@@ -13,8 +13,7 @@ int argmax(std::initializer_list<float> list) {
     auto max_it = std::max_element(list.begin(), list.end());
     return std::distance(list.begin(), max_it);
 }
-Agent::Agent(Snake& _snake, float learningRate, float gamma, float epsilon,float alpha, int n, int maxIteration): 
-    lr(learningRate),
+Agent::Agent(Snake& _snake, float gamma, float epsilon,float alpha, int n, int maxIteration): 
     gamma(gamma),
     eps(epsilon),
     alpha(alpha),
