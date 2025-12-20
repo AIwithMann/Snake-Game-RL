@@ -27,7 +27,6 @@ private:
     WEIGHT weights;
     STATE currentState;
 
-    float lr;
     float gamma;
     float eps;
     float alpha;
@@ -45,7 +44,7 @@ private:
     int reward(const STATE& sPrime, STATE appleIdx) const;
 
 public:
-    Agent(Snake& _snake, float learningRate, float gamma, float epsilon, float alpha, int n, int maxIteration);
+    Agent(Snake& _snake, float gamma, float epsilon, float alpha, int n, int maxIteration);
     ACTION chooseAction(FEATURE& s);
     void train();
     void play();
